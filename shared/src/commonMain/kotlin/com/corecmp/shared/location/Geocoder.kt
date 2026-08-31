@@ -59,6 +59,7 @@ object Geocoder {
                     longitude = lon
                 )
             }
+
             GeocoderResult.Success(results)
         } catch (e: Exception) {
             CoreCmpLogger.d("Geocoder search failed: ${e.message}")
