@@ -1,0 +1,119 @@
+{
+  "groupId": "com.corecmp",
+  "artifactId": "shared",
+  "latest": "1.0.0.1-rc-015",
+  "versions": [
+    "1.0.0.1-rc-015",
+    "1.0.0.1-rc-014",
+    "1.0.0.1-rc-013",
+    "1.0.0.1-rc-012",
+    "1.0.0.1-rc-011",
+    "1.0.0.1-rc-010",
+    "1.0.0.1-rc-009",
+    "1.0.0.1-rc-008",
+    "1.0.0.1-rc-007",
+    "1.0.0.1-rc-006",
+    "1.0.0.1-rc-005",
+    "1.0.0.1-rc-004",
+    "1.0.0.1-rc-003",
+    "1.0.0.1-rc-002",
+    "1.0.0"
+  ],
+  "releases": [
+    {
+      "version": "1.0.0.1-rc-015",
+      "message": "changes",
+      "publishedAt": "2026-08-29T05:18:26Z",
+      "commit": "d7c3c135e5c5f925fa1b3db87158ad07b82cf4d8"
+    },
+    {
+      "version": "1.0.0.1-rc-014",
+      "message": "Add code playground to dashboard",
+      "publishedAt": "2026-08-29T05:07:51Z",
+      "commit": "51818a96c2b0e7e3a79ce08de3de2633086d7cca"
+    },
+    {
+      "version": "1.0.0.1-rc-013",
+      "message": "Auto release 1.0.0.1-rc-013",
+      "publishedAt": "2026-08-29T05:03:55Z",
+      "commit": "dd541cd511cd7b75caea44f1aec2b59b6a367dca"
+    },
+    {
+      "version": "1.0.0.1-rc-012",
+      "message": "Add code playground to dashboard",
+      "publishedAt": "2026-08-20T12:47:40Z",
+      "commit": "b75906cae5ccb0d632a4fc4f9d932eaafbc1b18a"
+    },
+    {
+      "version": "1.0.0.1-rc-011",
+      "message": "Add code playground to dashboard",
+      "publishedAt": "2026-08-20T12:44:19Z",
+      "commit": "a6acde8529a9569b5044c5112ee120ca77877835"
+    },
+    {
+      "version": "1.0.0.1-rc-010",
+      "message": "Add code playground to dashboard",
+      "publishedAt": "2026-08-20T12:41:29Z",
+      "commit": "1bc530ded84984dcbe7e1fcb127a61e34a9b6253"
+    },
+    {
+      "version": "1.0.0.1-rc-009",
+      "message": "Add code playground to dashboard",
+      "publishedAt": "2026-08-20T12:35:53Z",
+      "commit": "9a85e34757ab27306872caed85b488c960241352"
+    },
+    {
+      "version": "1.0.0.1-rc-008",
+      "message": "Add code playground to dashboard",
+      "publishedAt": "2026-08-20T12:20:07Z",
+      "commit": "6d05e51499f1451c5fdad5c956de44b414ce8546"
+    },
+    {
+      "version": "1.0.0.1-rc-007",
+      "message": "Add Platform compatibility and code playground to dashboard",
+      "publishedAt": "2026-08-20T12:00:10Z",
+      "commit": "5692d33df8dc126c8735e514df868f4d11e2868a"
+    },
+    {
+      "version": "1.0.0.1-rc-006",
+      "message": "Add Platform compatibility and code playground to dashboard",
+      "publishedAt": "2026-08-20T11:53:20Z",
+      "commit": "6d75d69f69dbcbef48e4d2efe87a7986b56bb17d"
+    },
+    {
+      "version": "1.0.0.1-rc-005",
+      "message": "Add Platform compatibility and code playground to dashboard",
+      "publishedAt": "2026-08-20T11:43:43Z",
+      "commit": "22c73b3544d256d85ba1c32c0151c40e97d72a7f"
+    },
+    {
+      "version": "1.0.0.1-rc-004",
+      "message": "Testing dashboard integration flow",
+      "publishedAt": "2026-08-20T11:36:42Z",
+      "commit": "47fee420f9e54de3ddec09d419c04b243a045812"
+    },
+    {
+      "version": "1.0.0.1-rc-003",
+      "message": "Upgrade dashboard UI to premium theme",
+      "publishedAt": "2026-08-20T11:28:41Z",
+      "commit": "d6b1d3209d49041e3f27434eab5a79a43ee72a3c"
+    },
+    {
+      "version": "1.0.0.1-rc-002",
+      "message": "BottomSheet Optimize",
+      "publishedAt": "2026-08-20T11:21:05Z",
+      "commit": "8bf073848f300fd9581cc642ada472ecc78db801"
+    },
+    {
+      "version": "1.0.0",
+      "message": "Initial release with clean setup",
+      "publishedAt": "2026-08-20T11:11:06Z",
+      "commit": "af7e08f8cd46ad07b5a9129193cde0cd8cd3ecde"
+    }
+  ],
+  "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
+  "updatedAt": "2026-08-29T05:18:57Z",
+  "failures": [],
+  "inProgress": "",
+  "status": "passing"
+}

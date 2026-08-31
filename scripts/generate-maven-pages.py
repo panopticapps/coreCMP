@@ -1,0 +1,1394 @@
+#!/usr/bin/env python3
+"""Generate GitHub Pages index from versions.json (releases + commit messages + times)."""
+
+from __future__ import annotations
+
+import html
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+GROUP_ID = "com.corecmp"
+ARTIFACT_ID = "shared"
+SITE_URL = "https://panopticapps.github.io/coreCMP/"
+MAVEN_REPO_URL = "https://panopticapps.github.io/coreCMP/maven-repo/"
+GITHUB_REPO = "https://github.com/panopticapps/coreCMP"
+
+
+def format_when(iso_value: str) -> str:
+    if not iso_value:
+        return "—"
+    try:
+        normalized = iso_value.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(normalized)
+        return dt.strftime("%d %b %Y, %H:%M UTC")
+    except ValueError:
+        return iso_value
+
+
+def calculate_update_frequency(releases: list[dict]) -> str:
+    valid_times = []
+    for r in releases:
+        pub = r.get("publishedAt")
+        if pub:
+            try:
+                pub_clean = pub.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(pub_clean)
+                valid_times.append(dt)
+            except Exception:
+                pass
+    if len(valid_times) < 2:
+        return "Initial release cycle"
+    
+    valid_times.sort()
+    intervals = []
+    for i in range(len(valid_times) - 1):
+        diff = (valid_times[i+1] - valid_times[i]).total_seconds()
+        intervals.append(diff)
+        
+    avg_seconds = sum(intervals) / len(intervals)
+    avg_days = avg_seconds / 86400.0
+    
+    if avg_days < 0.04:  # less than ~1 hour
+        minutes = avg_days * 1440.0
+        return f"Every {max(1, int(minutes))} mins"
+    elif avg_days < 1:
+        hours = avg_days * 24.0
+        return f"Every {hours:.1f} hours"
+    elif avg_days < 7:
+        return f"Every {avg_days:.1f} days"
+    else:
+        weeks = avg_days / 7.0
+        return f"Every {weeks:.1f} weeks"
+
+
+def load_releases(data: dict) -> list[dict]:
+    releases = list(data.get("releases") or [])
+    if not releases:
+        return [
+            {
+                "version": version,
+                "message": f"Release CoreCmp {version}",
+                "publishedAt": "",
+                "commit": "",
+            }
+            for version in data.get("versions") or []
+        ]
+
+    latest = data.get("latest") or ""
+    releases.sort(key=lambda r: r.get("publishedAt", ""), reverse=True)
+    if latest:
+        for index, release in enumerate(releases):
+            if release.get("version") == latest:
+                releases.insert(0, releases.pop(index))
+                break
+    return releases
+
+
+def commit_link(sha: str) -> str:
+    if not sha:
+        return ""
+    short = sha[:7]
+    return f'<a href="{GITHUB_REPO}/commit/{sha}" title="{html.escape(sha)}" target="_blank" class="commit-link">{short}</a>'
+
+
+def render_rows(releases: list[dict], latest: str) -> str:
+    if not releases:
+        return '<tr><td colspan="4" class="no-data">No versions published yet.</td></tr>'
+
+    rows: list[str] = []
+    for release in releases:
+        version = release.get("version", "")
+        message = html.escape(release.get("message") or f"Release CoreCmp {version}")
+        when = format_when(release.get("publishedAt", ""))
+        commit = release.get("commit", "")
+        commit_cell = commit_link(commit) if commit else "—"
+        latest_badge = ' <span class="badge badge-success">latest</span>' if version == latest else ""
+        
+        # Determine Release Category for frontend filtering
+        if version == latest:
+            category = "latest"
+        elif "rc" in version.lower() or "beta" in version.lower() or "alpha" in version.lower():
+            category = "pre-release"
+        else:
+            category = "stable"
+
+        rows.append(
+            f"""
+        <tr{' class="latest-row"' if version == latest else ''} data-category="{category}">
+          <td class="version-cell">
+            <span class="version-pill"><code>{html.escape(version)}</code></span>{latest_badge}
+          </td>
+          <td class="message">{message}</td>
+          <td class="when">
+            <span class="date-text">{when}</span>
+            <span class="commit-sha">{commit_cell}</span>
+          </td>
+          <td class="code-cell">
+            <div class="code-copy-container inline-code-box">
+              <code class="snippet-code inline-code-text" id="dep-{html.escape(version)}">implementation("{GROUP_ID}:{ARTIFACT_ID}:{version}")</code>
+              <button class="btn-copy btn-copy-circle" onclick="copyCode('dep-{html.escape(version)}')" data-copy-id="dep-{html.escape(version)}" title="Copy dependency snippet">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+              </button>
+            </div>
+          </td>
+        </tr>"""
+        )
+    return "\n".join(rows)
+
+
+def render_failures(failures: list[dict]) -> str:
+    if not failures:
+        return ""
+    cards = []
+    for f in failures:
+        version = html.escape(f.get("version", ""))
+        commit = html.escape(f.get("commit", "")[:7])
+        published_at = format_when(f.get("publishedAt", ""))
+        log_file = html.escape(f.get("logFile", ""))
+        log_url = f"{MAVEN_REPO_URL}{log_file}" if not log_file.startswith("http") else log_file
+        
+        cards.append(f"""
+        <div class="failed-run-card">
+          <div class="failed-run-header">
+            <span class="failed-version">Build Failed (v{version})</span>
+            <span class="failed-time">{published_at}</span>
+          </div>
+          <div class="failed-commit">Commit: <code>{commit}</code></div>
+          <a href="{log_url}" target="_blank" class="btn-error-logs">View Log Report &rarr;</a>
+        </div>
+        """)
+    return "\n".join(cards)
+
+
+def main() -> None:
+    site_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "maven-repo")
+    site_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest_path = site_dir / "versions.json"
+    data: dict = {"latest": "", "versions": [], "releases": []}
+    if manifest_path.exists():
+        data = json.loads(manifest_path.read_text())
+
+    releases = load_releases(data)
+    latest = data.get("latest") or (releases[0]["version"] if releases else "")
+    updated_at = format_when(data.get("updatedAt", ""))
+    version_rows = render_rows(releases, latest)
+    
+    # Calculate release interval frequency
+    frequency = calculate_update_frequency(releases)
+    
+    failures = data.get("failures") or []
+    failures_html = render_failures(failures)
+    
+    # Build status logic
+    status = data.get("status") or "passing"
+    in_progress_version = data.get("inProgress") or ""
+    
+    if status == "in-progress":
+        build_badge = f"""<span class="status-badge warning">
+            <span class="status-indicator warning"></span> IN PROGRESS
+          </span>"""
+        build_subtext = f"Building version {html.escape(in_progress_version)}..."
+    elif status == "failed":
+        failed_version = failures[0].get("version") if failures else "unknown"
+        build_badge = f"""<span class="status-badge failure">
+            <span class="status-indicator failure"></span> FAILED
+          </span>"""
+        build_subtext = f"Build failed for v{html.escape(failed_version)}"
+    else:
+        build_badge = f"""<span class="status-badge success">
+            <span class="status-indicator success"></span> PASSING
+          </span>"""
+        build_subtext = f"Ready for integration"
+
+    # Generate Gradle snippets for multiple tools
+    setup_repo_kotlin = f'maven {{ url = uri("{MAVEN_REPO_URL}") }}'
+    setup_repo_groovy = f'maven {{ url "{MAVEN_REPO_URL}" }}'
+    setup_repo_maven = f"""<repository>
+  <id>corecmp-maven-repo</id>
+  <url>{MAVEN_REPO_URL}</url>
+</repository>"""
+
+    setup_dep_kotlin = f'implementation("{GROUP_ID}:{ARTIFACT_ID}:{latest or "1.0.0"}")'
+    setup_dep_groovy = f"implementation '{GROUP_ID}:{ARTIFACT_ID}:{latest or '1.0.0'}'"
+    setup_dep_maven = f"""<dependency>
+  <groupId>{GROUP_ID}</groupId>
+  <artifactId>{ARTIFACT_ID}</artifactId>
+  <version>{latest or "1.0.0"}</version>
+</dependency>"""
+
+    index_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>CoreCmp | Kotlin Multiplatform Toolset Maven Repository</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {{
+      --bg-primary: #030712;
+      --bg-secondary: #080f1e;
+      --bg-glass: rgba(13, 20, 38, 0.45);
+      --bg-glass-hover: rgba(17, 27, 54, 0.65);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --border-glow: rgba(99, 102, 241, 0.25);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --accent-indigo: #6366f1;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #a855f7;
+      --accent-green: #10b981;
+      --accent-red: #f43f5e;
+      --accent-orange: #f97316;
+      --font-sans: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --card-shadow: 0 10px 40px -15px rgba(0, 0, 0, 0.8);
+      --glow-shadow: 0 0 50px -10px rgba(99, 102, 241, 0.12);
+    }}
+
+    * {{ box-sizing: border-box; }}
+    
+    body {{
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.04) 0%, transparent 60%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }}
+
+    header {{
+      background: rgba(3, 7, 18, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }}
+
+    .header-container {{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+
+    .logo-container {{
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      text-decoration: none;
+    }}
+
+    .logo-dot {{
+      width: 14px;
+      height: 14px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      border-radius: 4px;
+      box-shadow: 0 0 15px var(--accent-indigo);
+      transform: rotate(45deg);
+    }}
+
+    .logo-text {{
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(to right, #ffffff 30%, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }}
+
+    .logo-tag {{
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }}
+
+    .github-btn-link {{
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.6rem 1.2rem;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }}
+
+    .github-btn-link:hover {{
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.15);
+    }}
+
+    main {{
+      max-width: 1200px;
+      margin: 3.5rem auto;
+      padding: 0 1.5rem 6rem;
+    }}
+
+    .hero-section {{
+      text-align: center;
+      margin-bottom: 4rem;
+    }}
+
+    .hero-title {{
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin: 0 0 0.75rem;
+      letter-spacing: -0.04em;
+      background: linear-gradient(135deg, #ffffff 20%, #a5b4fc 60%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }}
+
+    .hero-desc {{
+      color: var(--text-secondary);
+      font-size: 1.25rem;
+      max-width: 700px;
+      margin: 0 auto;
+      font-weight: 500;
+    }}
+
+    .dashboard-grid {{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 4.5rem;
+    }}
+
+    @media (min-width: 640px) {{
+      .dashboard-grid {{
+        grid-template-columns: repeat(2, 1fr);
+      }}
+    }}
+
+    @media (min-width: 1024px) {{
+      .dashboard-grid {{
+        grid-template-columns: repeat(4, 1fr);
+      }}
+    }}
+
+    .card {{
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: var(--card-shadow), var(--glow-shadow);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }}
+
+    .card::after {{
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: transparent;
+      transition: background 0.3s ease;
+    }}
+
+    .card:hover {{
+      transform: translateY(-5px);
+      border-color: rgba(99, 102, 241, 0.35);
+      background: var(--bg-glass-hover);
+      box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.2), var(--glow-shadow);
+    }}
+
+    .card-latest::after {{ background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan)); }}
+    .card-stats::after {{ background: linear-gradient(90deg, var(--accent-indigo), var(--accent-purple)); }}
+    .card-metrics::after {{ background: linear-gradient(90deg, var(--accent-cyan), var(--accent-indigo)); }}
+    .card-build::after {{ background: linear-gradient(90deg, var(--accent-orange), var(--accent-purple)); }}
+
+    .card-label {{
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+
+    .card-value {{
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.65rem;
+      letter-spacing: -0.02em;
+    }}
+
+    .card-subtext {{
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }}
+
+    .status-badge {{
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.85rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      border: 1px solid transparent;
+    }}
+
+    .status-badge.success {{ 
+      background: rgba(16, 185, 129, 0.08); 
+      color: #34d399; 
+      border-color: rgba(16, 185, 129, 0.15); 
+    }}
+
+    .status-indicator {{
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }}
+    .status-indicator.success {{ 
+      background: var(--accent-green); 
+      box-shadow: 0 0 10px var(--accent-green); 
+      animation: pulse 2s infinite; 
+    }}
+
+    .status-badge.warning {{
+      background: rgba(249, 115, 22, 0.08);
+      color: #fb923c;
+      border-color: rgba(249, 115, 22, 0.15);
+    }}
+    .status-indicator.warning {{
+      background: var(--accent-orange);
+      box-shadow: 0 0 10px var(--accent-orange);
+      animation: pulse 2s infinite;
+    }}
+
+    .status-badge.failure {{
+      background: rgba(244, 63, 94, 0.08);
+      color: #fb7185;
+      border-color: rgba(244, 63, 94, 0.15);
+    }}
+    .status-indicator.failure {{
+      background: var(--accent-red);
+      box-shadow: 0 0 10px var(--accent-red);
+    }}
+
+    @keyframes pulse {{
+      0% {{ transform: scale(0.9); opacity: 0.6; }}
+      50% {{ transform: scale(1.15); opacity: 1; }}
+      100% {{ transform: scale(0.9); opacity: 0.6; }}
+    }}
+
+    .metric-row {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.65rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding-bottom: 0.65rem;
+    }}
+
+    .metric-row:last-child {{
+      border-bottom: none;
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }}
+
+    .metric-value {{
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 500;
+    }}
+
+    .section-title {{
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin: 4.5rem 0 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      letter-spacing: -0.03em;
+    }}
+
+    .section-title-icon {{
+      width: 6px;
+      height: 24px;
+      background: linear-gradient(to bottom, var(--accent-indigo), var(--accent-cyan));
+      border-radius: 99px;
+    }}
+
+    /* Integration Section Tabs Styling */
+    .setup-grid {{
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 4rem;
+    }}
+
+    .tab-panel-container {{
+      background: var(--bg-glass);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: var(--card-shadow);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }}
+
+    .tab-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }}
+
+    .tab-title-group {{
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }}
+
+    .tab-title {{
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--text-primary);
+    }}
+
+    .tab-buttons {{
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.25rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }}
+
+    .tab-btn {{
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.45rem 1rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }}
+
+    .tab-btn.active {{
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.05);
+    }}
+
+    pre {{
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin: 0;
+      overflow-x: auto;
+      position: relative;
+    }}
+
+    code {{
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      color: #e2e8f0;
+    }}
+
+    .tab-content {{
+      display: none;
+    }}
+
+    .tab-content.active {{
+      display: block;
+    }}
+
+    .btn-copy-float {{
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }}
+
+    .btn-copy-float:hover {{
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(99, 102, 241, 0.3);
+    }}
+
+    /* Component Specs / Features overview */
+    .features-grid {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 4rem;
+    }}
+
+    .feature-card {{
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.25rem;
+      transition: all 0.2s ease;
+    }}
+
+    .feature-card:hover {{
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(99, 102, 241, 0.2);
+      transform: translateY(-2px);
+    }}
+
+    .feature-icon-wrapper {{
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.85rem;
+      background: rgba(99, 102, 241, 0.1);
+      color: #a5b4fc;
+    }}
+
+    .feature-card:nth-child(even) .feature-icon-wrapper {{
+      background: rgba(6, 182, 212, 0.1);
+      color: #22d3ee;
+    }}
+
+    .feature-title {{
+      font-weight: 700;
+      font-size: 1rem;
+      margin: 0 0 0.35rem 0;
+    }}
+
+    .feature-desc {{
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }}
+
+    /* History table actions & Search */
+    .table-actions-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }}
+
+    .search-input-wrapper {{
+      position: relative;
+      width: 320px;
+      max-width: 100%;
+    }}
+
+    .search-input {{
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-color);
+      padding: 0.65rem 1rem 0.65rem 2.5rem;
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }}
+
+    .search-input:focus {{
+      outline: none;
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+    }}
+
+    .search-icon-svg {{
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }}
+
+    .filter-options {{
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.25rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }}
+
+    .filter-btn {{
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.35rem 0.85rem;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }}
+
+    .filter-btn.active {{
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+    }}
+
+    /* Table Styling */
+    .table-container {{
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--card-shadow);
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }}
+
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }}
+
+    th, td {{
+      padding: 1.15rem 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }}
+
+    th {{
+      background: rgba(3, 7, 18, 0.5);
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }}
+
+    tr:last-child td {{
+      border-bottom: none;
+    }}
+
+    tr.latest-row {{
+      background: rgba(16, 185, 129, 0.015);
+    }}
+
+    tr.latest-row:hover {{
+      background: rgba(16, 185, 129, 0.035);
+    }}
+
+    tr:hover {{
+      background: rgba(255, 255, 255, 0.015);
+    }}
+
+    .version-pill {{
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 0.2rem 0.65rem;
+      border-radius: 8px;
+    }}
+
+    .latest-row .version-pill {{
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.2);
+    }}
+
+    .version-cell {{
+      font-weight: 700;
+      min-width: 160px;
+    }}
+
+    .badge {{
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-left: 0.45rem;
+    }}
+
+    .badge-success {{
+      background: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.15);
+    }}
+
+    td.message {{
+      max-width: 380px;
+      font-size: 0.9rem;
+      color: #d1d5db;
+      word-break: break-word;
+    }}
+
+    td.when {{
+      min-width: 180px;
+    }}
+
+    .date-text {{
+      display: block;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }}
+
+    .commit-sha {{
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }}
+
+    .commit-link {{
+      color: var(--accent-indigo);
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      transition: color 0.15s ease;
+    }}
+
+    .commit-link:hover {{
+      color: #a5b4fc;
+      text-decoration: underline;
+    }}
+
+    .code-cell {{
+      min-width: 320px;
+    }}
+
+    .inline-code-box {{
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+    }}
+
+    .inline-code-text {{
+      font-size: 0.82rem;
+      color: #94a3b8;
+    }}
+
+    .btn-copy-circle {{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-secondary);
+    }}
+
+    .btn-copy-circle:hover {{
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border-color: rgba(99, 102, 241, 0.3);
+    }}
+
+    .no-data {{
+      text-align: center;
+      color: var(--text-muted);
+      padding: 4rem;
+      font-weight: 500;
+    }}
+
+    /* Build Failures Log Area */
+    .failures-log-container {{
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 3.5rem;
+    }}
+
+    .failed-run-card {{
+      background: rgba(244, 63, 94, 0.015);
+      border: 1px solid rgba(244, 63, 94, 0.08);
+      border-radius: 16px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }}
+
+    .failed-run-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+
+    .failed-version {{
+      color: var(--accent-red);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }}
+
+    .failed-time {{
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }}
+
+    .failed-commit {{
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }}
+
+    .failed-commit code {{
+      font-size: 0.78rem;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0.1rem 0.3rem;
+      border-radius: 4px;
+    }}
+
+    .btn-error-logs {{
+      color: var(--accent-red);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-top: 0.25rem;
+      align-self: flex-start;
+      transition: opacity 0.15s ease;
+    }}
+
+    .btn-error-logs:hover {{
+      opacity: 0.8;
+      text-decoration: underline;
+    }}
+
+    /* Toast notification */
+    .toast-container {{
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }}
+
+    .toast-alert {{
+      background: rgba(8, 15, 30, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--accent-indigo);
+      border-left: 4px solid var(--accent-indigo);
+      color: var(--text-primary);
+      padding: 0.85rem 1.5rem;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      font-size: 0.88rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }}
+
+    @keyframes slideIn {{
+      from {{ transform: translateY(20px); opacity: 0; }}
+      to {{ transform: translateY(0); opacity: 1; }}
+    }}
+
+    footer {{
+      margin-top: 6rem;
+      border-top: 1px solid var(--border-color);
+      padding: 2.5rem 0;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-weight: 500;
+    }}
+
+    footer a {{
+      color: var(--accent-cyan);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }}
+
+    footer a:hover {{
+      color: var(--accent-indigo);
+      text-decoration: underline;
+    }}
+  </style>
+  <script>
+    function copyCode(id) {{
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => {{
+        showToast("Dependency snippet copied!");
+      }});
+    }}
+
+    function showToast(message) {{
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast-alert';
+      toast.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="3" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"></polyline></svg> ${{message}}`;
+      container.appendChild(toast);
+      
+      setTimeout(() => {{
+        toast.style.animation = 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) reverse forwards';
+        setTimeout(() => toast.remove(), 300);
+      }}, 2500);
+    }}
+
+    function switchTab(groupName, tabId) {{
+      // Update Tab Buttons
+      const buttons = document.querySelectorAll(`[data-tab-group="${{groupName}}"]`);
+      buttons.forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Update Tab Content
+      const contents = document.querySelectorAll(`[data-tab-content-group="${{groupName}}"]`);
+      contents.forEach(content => content.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+    }}
+
+    function searchVersions() {{
+      const query = document.getElementById('search-box').value.toLowerCase().trim();
+      const rows = document.querySelectorAll('tbody tr');
+      let visibleCount = 0;
+
+      rows.forEach(row => {{
+        if (row.classList.contains('no-data-row')) return;
+        const version = row.querySelector('.version-cell').innerText.toLowerCase();
+        const msg = row.querySelector('.message').innerText.toLowerCase();
+        
+        const matchesQuery = version.includes(query) || msg.includes(query);
+        const matchesFilter = matchesActiveFilter(row);
+
+        if (matchesQuery && matchesFilter) {{
+          row.style.display = '';
+          visibleCount++;
+        }} else {{
+          row.style.display = 'none';
+        }}
+      }});
+
+      toggleNoDataRow(visibleCount === 0);
+    }}
+
+    function filterCategory(category) {{
+      // Update active filter button
+      const buttons = document.querySelectorAll('.filter-btn');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('filter-select').dataset.activeFilter = category;
+
+      searchVersions(); // re-eval with query
+    }}
+
+    function matchesActiveFilter(row) {{
+      const filter = document.getElementById('filter-select').dataset.activeFilter || 'all';
+      if (filter === 'all') return true;
+      
+      const rowCategory = row.dataset.category;
+      if (filter === 'stable') return rowCategory === 'stable' || rowCategory === 'latest';
+      if (filter === 'prerelease') return rowCategory === 'pre-release';
+      return true;
+    }}
+
+    function toggleNoDataRow(show) {{
+      const noDataRow = document.getElementById('js-no-data-row');
+      if (show) {{
+        if (!noDataRow) {{
+          const tbody = document.querySelector('tbody');
+          const tr = document.createElement('tr');
+          tr.id = 'js-no-data-row';
+          tr.className = 'no-data-row';
+          tr.innerHTML = '<td colspan="4" class="no-data">No matching versions found.</td>';
+          tbody.appendChild(tr);
+        }}
+      }} else {{
+        if (noDataRow) noDataRow.remove();
+      }}
+    }}
+  </script>
+</head>
+<body>
+  <header>
+    <div class="header-container">
+      <a href="#" class="logo-container">
+        <span class="logo-dot"></span>
+        <span class="logo-text">CoreCmp</span>
+        <span class="logo-tag">MMP Toolkit</span>
+      </a>
+      <a href="{GITHUB_REPO}" target="_blank" class="github-btn-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:0.25rem"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+        GitHub Code &rarr;
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero-section">
+      <h1 class="hero-title">Release Registry</h1>
+      <p class="hero-desc">Kotlin Multiplatform (KMP) compiled Maven toolkit repository and deployment log panel.</p>
+    </section>
+
+    <!-- Metrics Cards Grid -->
+    <section class="dashboard-grid">
+      <!-- Card 1: Latest Version -->
+      <div class="card card-latest">
+        <div class="card-label">
+          <span>Active Release</span>
+          <span class="status-badge success">
+            <span class="status-indicator success"></span> LIVE
+          </span>
+        </div>
+        <div class="card-value" style="font-family: var(--font-mono); color: #34d399; font-size: 1.8rem;">
+          {html.escape(latest or "—")}
+        </div>
+        <div class="card-subtext">Synchronized: <span style="color: var(--text-primary)">{updated_at or "—"}</span></div>
+      </div>
+
+      <!-- Card 2: Release Interval -->
+      <div class="card card-stats">
+        <div class="card-label">Deploy Frequency</div>
+        <div class="card-value" style="color: #a5b4fc;">{frequency}</div>
+        <div class="card-subtext">Total cataloged releases: <span style="color: var(--text-primary)">{len(releases)}</span></div>
+      </div>
+
+      <!-- Card 3: Library Details -->
+      <div class="card card-metrics">
+        <div class="card-label">Coordinates Specs</div>
+        <div class="metric-row">
+          <span class="card-subtext">Group:</span>
+          <span class="metric-value" style="color: var(--accent-cyan);">{GROUP_ID}</span>
+        </div>
+        <div class="metric-row">
+          <span class="card-subtext">Artifact:</span>
+          <span class="metric-value" style="color: var(--accent-purple);">{ARTIFACT_ID}</span>
+        </div>
+      </div>
+
+      <!-- Card 4: Build Status -->
+      <div class="card card-build">
+        <div class="card-label">Latest Build Status</div>
+        <div class="card-value">
+          {build_badge}
+        </div>
+        <div class="card-subtext">{build_subtext}</div>
+      </div>
+    </section>
+
+    <!-- Core Features Preview -->
+    <h2 class="section-title"><span class="section-title-icon"></span>Library Components</h2>
+    <section class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+        </div>
+        <h3 class="feature-title">API Engine</h3>
+        <p class="feature-desc">Ktor unified client with parameter merging, priority queues, and token refreshing.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
+        </div>
+        <h3 class="feature-title">Local DB</h3>
+        <p class="feature-desc">Platform-specific drivers auto-mapping SQLDelight logic locally on Android &amp; iOS.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 0-10 10c0 5.25 10 12 10 12s10-6.75 10-12a10 10 0 0 0-10-10z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        </div>
+        <h3 class="feature-title">Location Service</h3>
+        <p class="feature-desc">Unified GPS, geofencing, and background monitoring wrapper.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </div>
+        <h3 class="feature-title">Secure Vault</h3>
+        <p class="feature-desc">Keychain / Keystore secure string storage and biometric authentication.</p>
+      </div>
+    </section>
+
+    <!-- Failed Runs Panel (only if there are failures) -->
+    {f'<h2 class="section-title"><span class="section-title-icon" style="background:var(--accent-red)"></span>Recent Build Failures</h2><section class="failures-log-container">{failures_html}</section>' if failures else ''}
+
+    <!-- Gradle Integration Tabs -->
+    <h2 class="section-title"><span class="section-title-icon"></span>Gradle &amp; Maven Setup</h2>
+    <section class="setup-grid">
+      <!-- Repo Configuration Card -->
+      <div class="tab-panel-container">
+        <div class="tab-header">
+          <div class="tab-title-group">
+            <span class="tab-title">1. Repository Setup Snippet</span>
+          </div>
+          <div class="tab-buttons">
+            <button class="tab-btn active" data-tab-group="repo" onclick="switchTab('repo', 'repo-kotlin')">Kotlin DSL</button>
+            <button class="tab-btn" data-tab-group="repo" onclick="switchTab('repo', 'repo-groovy')">Groovy</button>
+            <button class="tab-btn" data-tab-group="repo" onclick="switchTab('repo', 'repo-maven')">Maven</button>
+          </div>
+        </div>
+
+        <div id="repo-kotlin" class="tab-content active" data-tab-content-group="repo">
+          <button class="btn-copy-float" onclick="copyCode('snippet-repo-kotlin')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            Copy
+          </button>
+          <pre><code id="snippet-repo-kotlin">{html.escape(setup_repo_kotlin)}</code></pre>
+        </div>
+
+        <div id="repo-groovy" class="tab-content" data-tab-content-group="repo">
+          <button class="btn-copy-float" onclick="copyCode('snippet-repo-groovy')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            Copy
+          </button>
+          <pre><code id="snippet-repo-groovy">{html.escape(setup_repo_groovy)}</code></pre>
+        </div>
+
+        <div id="repo-maven" class="tab-content" data-tab-content-group="repo">
+          <button class="btn-copy-float" onclick="copyCode('snippet-repo-maven')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            Copy
+          </button>
+          <pre><code id="snippet-repo-maven">{html.escape(setup_repo_maven)}</code></pre>
+        </div>
+      </div>
+
+      <!-- Dependency Configuration Card -->
+      <div class="tab-panel-container" style="margin-top: 1.5rem;">
+        <div class="tab-header">
+          <div class="tab-title-group">
+            <span class="tab-title">2. Add Dependency Snippet</span>
+          </div>
+          <div class="tab-buttons">
+            <button class="tab-btn active" data-tab-group="dep" onclick="switchTab('dep', 'dep-kotlin')">Kotlin DSL</button>
+            <button class="tab-btn" data-tab-group="dep" onclick="switchTab('dep', 'dep-groovy')">Groovy</button>
+            <button class="tab-btn" data-tab-group="dep" onclick="switchTab('dep', 'dep-maven')">Maven</button>
+          </div>
+        </div>
+
+        <div id="dep-kotlin" class="tab-content active" data-tab-content-group="dep">
+          <button class="btn-copy-float" onclick="copyCode('snippet-dep-kotlin')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            Copy
+          </button>
+          <pre><code id="snippet-dep-kotlin">{html.escape(setup_dep_kotlin)}</code></pre>
+        </div>
+
+        <div id="dep-groovy" class="tab-content" data-tab-content-group="dep">
+          <button class="btn-copy-float" onclick="copyCode('snippet-dep-groovy')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            Copy
+          </button>
+          <pre><code id="snippet-dep-groovy">{html.escape(setup_dep_groovy)}</code></pre>
+        </div>
+
+        <div id="dep-maven" class="tab-content" data-tab-content-group="dep">
+          <button class="btn-copy-float" onclick="copyCode('snippet-dep-maven')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            Copy
+          </button>
+          <pre><code id="snippet-dep-maven">{html.escape(setup_dep_maven)}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Version Registry Header & Actions -->
+    <h2 class="section-title"><span class="section-title-icon"></span>Version Registry</h2>
+    
+    <div class="table-actions-header">
+      <div class="search-input-wrapper">
+        <svg class="search-icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="search-box" class="search-input" onkeyup="searchVersions()" placeholder="Search versions or commit logs..."/>
+      </div>
+
+      <div class="filter-options" id="filter-select" data-active-filter="all">
+        <button class="filter-btn active" onclick="filterCategory('all')">All</button>
+        <button class="filter-btn" onclick="filterCategory('stable')">Stable</button>
+        <button class="filter-btn" onclick="filterCategory('prerelease')">Pre-releases</button>
+      </div>
+    </div>
+
+    <!-- Version Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Version</th>
+            <th>Description &amp; Log</th>
+            <th>Released At</th>
+            <th>Snippet</th>
+          </tr>
+        </thead>
+        <tbody>
+          {version_rows}
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="toast-container" class="toast-container"></div>
+
+  <footer>
+    <p>Powered by GitHub Pages Maven Repository plugin. Crafted beautifully by <a href="{GITHUB_REPO}" target="_blank">CoreCmp</a>.</p>
+  </footer>
+</body>
+</html>
+"""
+
+    (site_dir / "index.html").write_text(index_html)
+    print(f"Generated dashboard: {site_dir / 'index.html'}")
+
+
+if __name__ == "__main__":
+    main()

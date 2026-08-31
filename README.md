@@ -54,7 +54,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         // Custom CoreCmp Repository
-        maven("https://deepak-choudharyy.github.io/CoreCMP/maven-repo/")
+        maven("https://panopticapps.github.io/coreCMP/maven-repo/")
     }
 }
 ```
