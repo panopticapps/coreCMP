@@ -970,7 +970,7 @@
         <div class="card-value" style="font-family: var(--font-mono); color: #34d399; font-size: 1.8rem;">
           1.0.0.1-rc-016
         </div>
-        <div class="card-subtext">Synchronized: <span style="color: var(--text-primary)">31 Aug 2026, 10:59 UTC</span></div>
+        <div class="card-subtext">Synchronized: <span style="color: var(--text-primary)">07 Oct 2026, 10:45 UTC</span></div>
       </div>
 
       <!-- Card 2: Release Interval -->
@@ -997,11 +997,11 @@
       <div class="card card-build">
         <div class="card-label">Latest Build Status</div>
         <div class="card-value">
-          <span class="status-badge success">
-            <span class="status-indicator success"></span> PASSING
+          <span class="status-badge failure">
+            <span class="status-indicator failure"></span> FAILED
           </span>
         </div>
-        <div class="card-subtext">Ready for integration</div>
+        <div class="card-subtext">Build failed for v1.0.0.1-rc-017</div>
       </div>
     </section>
 
@@ -1042,7 +1042,16 @@
     </section>
 
     <!-- Failed Runs Panel (only if there are failures) -->
-    
+    <h2 class="section-title"><span class="section-title-icon" style="background:var(--accent-red)"></span>Recent Build Failures</h2><section class="failures-log-container">
+        <div class="failed-run-card">
+          <div class="failed-run-header">
+            <span class="failed-version">Build Failed (v1.0.0.1-rc-017)</span>
+            <span class="failed-time">07 Oct 2026, 10:38 UTC</span>
+          </div>
+          <div class="failed-commit">Commit: <code>c4cd9f3</code></div>
+          <a href="https://panopticapps.github.io/coreCMP/maven-repo/logs/build-1.0.0.1-rc-017-failed.log" target="_blank" class="btn-error-logs">View Log Report &rarr;</a>
+        </div>
+        </section>
 
     <!-- Gradle Integration Tabs -->
     <h2 class="section-title"><span class="section-title-icon"></span>Gradle &amp; Maven Setup</h2>

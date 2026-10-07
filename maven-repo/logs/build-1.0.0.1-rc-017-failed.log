@@ -1,0 +1,119 @@
+Starting a Gradle Daemon (subsequent builds will be faster)
+Daemon JVM discovery is an incubating feature.
+Calculating task graph as no cached configuration is available for tasks: publishAllPublicationsToMavenRepository
+Type-safe project accessors is an incubating feature.
+> Task :shared:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :shared:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :shared:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :shared:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :shared:copyNonXmlValueResourcesForCommonMain
+> Task :shared:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :shared:prepareComposeResourcesTaskForCommonMain
+> Task :shared:generateExpectResourceCollectorsForCommonMain
+> Task :shared:generateComposeResClass
+> Task :shared:androidPreBuild UP-TO-DATE
+> Task :shared:preAndroidMainBuild UP-TO-DATE
+> Task :shared:copyAndroidMainComposeResourcesToAndroidAssets
+> Task :shared:generateResourceAccessorsForCommonMain
+> Task :shared:generateActualResourceCollectorsForAndroidMain
+> Task :shared:generateAndroidMainEmptyResourceFiles
+> Task :shared:packageAndroidMainResources
+> Task :shared:mergeAndroidMainJniLibFolders
+> Task :shared:mergeAndroidMainNativeLibs NO-SOURCE
+> Task :shared:parseAndroidMainLocalResources
+> Task :shared:copyAndroidMainJniLibsProjectOnly
+> Task :shared:generateAndroidMainAssets UP-TO-DATE
+> Task :shared:mergeAndroidMainAssets
+> Task :shared:prepareAndroidMainArtProfile
+> Task :shared:generateAndroidMainRFile
+> Task :shared:prepareLintJarForPublish
+> Task :shared:checkAndroidMainAarMetadata
+> Task :shared:kmpPartiallyResolvedDependenciesChecker
+> Task :shared:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :shared:processAndroidMainManifest
+> Task :shared:generatePomFileForAndroidPublication
+
+> Task :shared:checkIosArm64MainComposeLibrariesCompatibility
+w: Skiko dependencies' versions are incompatible.
+    io.coil-kt.coil3:coil-core-iosarm64:3.4.0
+    \--- org.jetbrains.skiko:skiko:0.9.22.2 -> 0.144.6
+
+    io.coil-kt.coil3:coil-svg-iosarm64:3.4.0
+    \--- org.jetbrains.skiko:skiko:0.9.22.2 -> 0.144.6
+
+This may lead to compilation errors or unexpected behavior at runtime.
+Such version mismatch might be caused by dependency constraints in one of the included libraries.
+You can inspect resulted dependencies tree via `./gradlew :shared:dependencies  --configuration iosArm64CompileKlibraries`.
+See more details in Gradle documentation: https://docs.gradle.org/current/userguide/viewing_debugging_dependencies.html#sec:listing-dependencies
+
+Note: Skiko is considered implementation detail in Compose Multiplatform and might be incompatible across versions.
+Please align Skiko dependencies to the same version. If possible, avoid direct Skiko references and use Compose APIs instead.
+
+
+> Task :shared:generateCommonMainCoreCmpDatabaseInterface
+> Task :shared:androidSourcesJar
+> Task :shared:writeAndroidMainAarMetadata
+> Task :shared:convertXmlValueResourcesForAppleMain NO-SOURCE
+> Task :shared:copyNonXmlValueResourcesForAppleMain NO-SOURCE
+> Task :shared:prepareComposeResourcesTaskForAppleMain NO-SOURCE
+> Task :shared:generateResourceAccessorsForAppleMain NO-SOURCE
+> Task :shared:convertXmlValueResourcesForIosArm64Main NO-SOURCE
+> Task :shared:copyNonXmlValueResourcesForIosArm64Main NO-SOURCE
+> Task :shared:prepareComposeResourcesTaskForIosArm64Main NO-SOURCE
+> Task :shared:generateResourceAccessorsForIosArm64Main NO-SOURCE
+> Task :shared:convertXmlValueResourcesForIosMain NO-SOURCE
+> Task :shared:copyNonXmlValueResourcesForIosMain NO-SOURCE
+> Task :shared:prepareComposeResourcesTaskForIosMain NO-SOURCE
+> Task :shared:generateResourceAccessorsForIosMain NO-SOURCE
+> Task :shared:convertXmlValueResourcesForNativeMain NO-SOURCE
+> Task :shared:copyNonXmlValueResourcesForNativeMain NO-SOURCE
+> Task :shared:prepareComposeResourcesTaskForNativeMain NO-SOURCE
+> Task :shared:generateResourceAccessorsForNativeMain NO-SOURCE
+> Task :shared:generateActualResourceCollectorsForIosArm64Main
+> Task :shared:extractAndroidMainAnnotations
+> Task :shared:transformCommonMainDependenciesMetadata
+
+> Task :shared:compileCommonMainKotlinMetadata FAILED
+e: file:///Users/pikay/StudioProjects/coreCMP/shared/src/commonMain/kotlin/com/corecmp/shared/ui/CustomImage.kt:340:60 Smart cast to 'ByteArray' is impossible, because 'bytes' is a delegated property.
+e: file:///Users/pikay/StudioProjects/coreCMP/shared/src/commonMain/kotlin/com/corecmp/shared/ui/ImageBytes.kt:105:87 Unresolved reference 'DOT_MATCHES_ALL'.
+
+> Task :shared:compileAndroidMain
+e: file:///Users/pikay/StudioProjects/coreCMP/shared/src/commonMain/kotlin/com/corecmp/shared/ui/CustomImage.kt:340:60 Smart cast to 'ByteArray' is impossible, because 'bytes' is a delegated property.
+
+> Task :shared:compileAndroidMain FAILED
+> Task :shared:downloadKotlinNativeDistribution
+> Task :shared:commonizeNativeDistribution
+
+FAILURE: Build completed with 2 failures.
+
+1: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':shared:compileCommonMainKotlinMetadata'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+2: Task failed with an exception.
+-----------
+* What went wrong:
+Execution failed for task ':shared:compileAndroidMain'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.btapi.BuildToolsApiCompilationWork
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to generate a Build Scan (Powered by Develocity).
+> Get more help at https://help.gradle.org.
+==============================================================================
+
+BUILD FAILED in 6m 38s
+31 actionable tasks: 31 executed
+Configuration cache entry stored.
