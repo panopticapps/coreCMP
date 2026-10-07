@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-018",
+  "latest": "1.0.0.1-rc-019",
   "versions": [
+    "1.0.0.1-rc-019",
     "1.0.0.1-rc-018",
     "1.0.0.1-rc-016",
     "1.0.0.1-rc-015",
@@ -22,6 +23,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-019",
+      "message": "CustomImage uses Coil singleton; debug logs off by default",
+      "publishedAt": "2026-10-07T11:52:25Z",
+      "commit": "316d18e9674554c95f581a49d2c9edf8360644a1"
+    },
     {
       "version": "1.0.0.1-rc-018",
       "message": "Custom Image changes",
@@ -126,7 +133,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-10-07T11:52:26Z",
+  "updatedAt": "2026-10-07T11:53:21Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -135,6 +142,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "1.0.0.1-rc-019",
-  "status": "in-progress"
+  "inProgress": "",
+  "status": "passing"
 }

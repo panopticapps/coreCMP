@@ -6,7 +6,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ColorFilter
@@ -14,25 +13,24 @@ import androidx.compose.ui.graphics.DefaultAlpha
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
-import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.size.Scale
-import coil3.svg.SvgDecoder
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.animateLottieCompositionAsState
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
-import io.ktor.client.HttpClient
+import com.corecmp.shared.api.CoreCmpLogger
+import com.corecmp.shared.api.HttpClientProvider
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
@@ -40,9 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.sp
 import com.corecmp.shared.CoreCmp
-import com.corecmp.shared.getCacheDir
-import coil3.disk.DiskCache
-import okio.Path.Companion.toPath
 
 
 
@@ -149,21 +144,6 @@ fun CustomImage(
 
     val context = LocalPlatformContext.current
 
-    val imageLoader = remember {
-        ImageLoader.Builder(context)
-            .components {
-                add(KtorNetworkFetcherFactory())
-                add(SvgDecoder.Factory())
-            }
-            .diskCache {
-                DiskCache.Builder()
-                    .directory(getCacheDir().toPath())
-                    .maxSizeBytes(50L * 1024L * 1024L) // 50MB
-                    .build()
-            }
-            .build()
-    }
-
     val showPlaceholder: @Composable () -> Unit = {
 
         when (placeholder) {
@@ -234,7 +214,6 @@ fun CustomImage(
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
                 .build(),
-            imageLoader = imageLoader,
             contentDescription = contentDescription,
             modifier = modifier,
             contentScale = contentScale,
@@ -286,7 +265,6 @@ fun CustomImage(
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .scale(Scale.FIT)
                             .build(),
-                        imageLoader = imageLoader,
                         contentDescription = contentDescription,
                         modifier = modifier,
                         contentScale = contentScale,
@@ -308,7 +286,6 @@ fun CustomImage(
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .scale(Scale.FIT)
                         .build(),
-                    imageLoader = imageLoader,
                     contentDescription = contentDescription,
                     modifier = modifier,
                     contentScale = contentScale,
@@ -330,8 +307,10 @@ fun CustomImage(
                         CustomImageResourceResolver
                             .resolveBytes
                             ?.invoke(cleanPath)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        println("Image resolve failed: $cleanPath")
+                        CoreCmpLogger.d("Image resolve failed: $cleanPath")
                         null
                     }
                 }
@@ -346,7 +325,6 @@ fun CustomImage(
                         .diskCachePolicy(CachePolicy.ENABLED)
                     SubcomposeAsyncImage(
                         model = requestBuilder.build(),
-                        imageLoader = imageLoader,
                         contentDescription = contentDescription,
                         modifier = modifier,
                         contentScale = contentScale,
@@ -380,7 +358,7 @@ private object LottiePlaceholderCache {
             when (placeholder) {
                 is Placeholder.LottieUrl -> {
                     jsonByKey.getOrPut(placeholder.url) {
-                        HttpClient().get(placeholder.url).bodyAsText()
+                        HttpClientProvider.client.get(placeholder.url).bodyAsText()
                     }
                 }
 
@@ -404,8 +382,10 @@ private object LottiePlaceholderCache {
                 is Placeholder.LottieBytes -> placeholder.bytes.decodeToString()
                 else -> null
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            println("Lottie error: $e")
+            CoreCmpLogger.d("Lottie error: $e")
             null
         }
     }

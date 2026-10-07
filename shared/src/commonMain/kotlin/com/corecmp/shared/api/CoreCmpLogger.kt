@@ -4,7 +4,7 @@ import com.corecmp.shared.security.redactPiiFromLog
 
 // API logger for requests, responses, and errors
 object CoreCmpLogger {
-    var isDebugEnabled: Boolean = true
+    var isDebugEnabled: Boolean = false
 
     fun d(message: String) {
         if (isDebugEnabled) println(message)
