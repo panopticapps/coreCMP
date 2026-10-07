@@ -229,8 +229,7 @@ fun CustomImage(
 
         is ByteArray -> SubcomposeAsyncImage(
             model = ImageRequest.Builder(context)
-                .data(model)
-                .decoderFactory(SvgDecoder.Factory())
+                .applyPreparedImageBytes(model, "bytes:${model.size}:${model.contentHashCode()}")
                 .crossfade(true)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
@@ -265,10 +264,43 @@ fun CustomImage(
             }
 
             if (isUrl) {
+                val urlPath = cleanPath.substringBefore('?')
+                val looksSvg = urlPath.endsWith(".svg", ignoreCase = true)
+                if (looksSvg) {
+                    val prepared by produceState<ByteArray?>(
+                        initialValue = null,
+                        key1 = cleanPath,
+                    ) {
+                        value = fetchPreparedRemoteImageBytes(cleanPath)
+                    }
+                    val bytes = prepared
+                    if (bytes == null) {
+                        showPlaceholder()
+                        return
+                    }
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .applyPreparedImageBytes(bytes, cleanPath)
+                            .crossfade(true)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .scale(Scale.FIT)
+                            .build(),
+                        imageLoader = imageLoader,
+                        contentDescription = contentDescription,
+                        modifier = modifier,
+                        contentScale = contentScale,
+                        colorFilter = colorFilter
+                    ) {
+                        val state by painter.state.collectAsState()
+                        if (state is AsyncImagePainter.State.Success) SubcomposeAsyncImageContent()
+                        else showPlaceholder()
+                    }
+                    return
+                }
                 SubcomposeAsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(cleanPath)
-                        .decoderFactory(SvgDecoder.Factory())
                         .memoryCacheKey(cleanPath)
                         .diskCacheKey(cleanPath)
                         .crossfade(true)
@@ -304,16 +336,14 @@ fun CustomImage(
                     }
                 }
 
-                if (bytes != null) {
+                val resolvedBytes = bytes
+                if (resolvedBytes != null) {
+                    val prepared = prepareRemoteImageBytes(resolvedBytes, cleanPath)
                     val requestBuilder = ImageRequest.Builder(context)
-                        .data(bytes)
+                        .applyPreparedImageBytes(prepared, cleanPath)
                         .crossfade(true)
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                    // Only force SVG decoder for vector assets; WebP/PNG use platform decoders.
-                    if (cleanPath.endsWith(".svg", ignoreCase = true)) {
-                        requestBuilder.decoderFactory(SvgDecoder.Factory())
-                    }
                     SubcomposeAsyncImage(
                         model = requestBuilder.build(),
                         imageLoader = imageLoader,
