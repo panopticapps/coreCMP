@@ -1,8 +1,6 @@
 package com.corecmp.shared.ui
 
 import coil3.request.ImageRequest
-import coil3.size.Precision
-import coil3.size.Size
 import coil3.svg.SvgDecoder
 import com.corecmp.shared.api.CoreCmpLogger
 import com.corecmp.shared.api.HttpClientProvider
@@ -61,32 +59,7 @@ internal fun looksLikeSvgBytes(bytes: ByteArray): Boolean {
         (trimmed.startsWith("<?xml", ignoreCase = true) && head.contains("<svg", ignoreCase = true))
 }
 
-private val SVG_OPEN_TAG = Regex("""<svg\b[^>]*>""", RegexOption.IGNORE_CASE)
-private val SVG_VIEWBOX = Regex("""viewBox\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
-private val SVG_WIDTH_ATTR = Regex("""\bwidth\s*=\s*["']([\d.]+)""", RegexOption.IGNORE_CASE)
-private val SVG_HEIGHT_ATTR = Regex("""\bheight\s*=\s*["']([\d.]+)""", RegexOption.IGNORE_CASE)
 private val SVG_FONT_FAMILY = Regex("""font-family="[^"]*"""", RegexOption.IGNORE_CASE)
-
-internal fun svgIntrinsicSize(bytes: ByteArray): Pair<Int, Int>? {
-    val head = runCatching {
-        bytes.decodeToString(0, minOf(bytes.size, 1024))
-    }.getOrNull() ?: return null
-    val tag = SVG_OPEN_TAG.find(head)?.value ?: return null
-    val vbParts = SVG_VIEWBOX.find(tag)?.groupValues?.get(1)?.trim()?.split(Regex("""[\s,]+"""))
-    val rawW: Float
-    val rawH: Float
-    if (vbParts != null && vbParts.size == 4) {
-        rawW = vbParts[2].toFloatOrNull() ?: return null
-        rawH = vbParts[3].toFloatOrNull() ?: return null
-    } else {
-        rawW = SVG_WIDTH_ATTR.find(tag)?.groupValues?.get(1)?.toFloatOrNull() ?: return null
-        rawH = SVG_HEIGHT_ATTR.find(tag)?.groupValues?.get(1)?.toFloatOrNull() ?: return null
-    }
-    if (rawW <= 0f || rawH <= 0f) return null
-    val longest = maxOf(rawW, rawH)
-    val scale = if (longest > 512f) 512f / longest else 1f
-    return (rawW * scale).toInt().coerceAtLeast(1) to (rawH * scale).toInt().coerceAtLeast(1)
-}
 
 internal fun simplifySvgFonts(bytes: ByteArray): ByteArray {
     val text = runCatching { bytes.decodeToString() }.getOrNull() ?: return bytes
@@ -258,11 +231,9 @@ internal fun ImageRequest.Builder.applyPreparedImageBytes(
     memoryCacheKey(cacheKey)
     diskCacheKey(cacheKey)
     if (looksLikeSvgBytes(bytes) && !isRasterImageBytes(bytes)) {
+        // Leave size unset so Coil decodes at the composable's pixel size.
+        // Locking to the SVG viewBox (often 14px) stretches into a soft icon.
         decoderFactory(SvgDecoder.Factory())
-        svgIntrinsicSize(bytes)?.let { (w, h) ->
-            size(Size(w, h))
-            precision(Precision.EXACT)
-        }
     }
     return this
 }
