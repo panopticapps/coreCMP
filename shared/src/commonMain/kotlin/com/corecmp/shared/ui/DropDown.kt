@@ -69,6 +69,8 @@ fun <T> CommonDropDown(
     selectedItems: List<T> = emptyList(),
     isMultiSelect: Boolean = false,
     isSelectAll: Boolean = false,
+    /** Multi-select cap. 0 means no limit, so existing dropdowns stay unchanged. */
+    maxSelection: Int = 0,
     itemLabel: ((T) -> String)? = null,
     onItemSelected: (T?) -> Unit = {},
     onType: (String) -> Unit = {},
@@ -379,7 +381,10 @@ fun <T> CommonDropDown(
                                     } else {
                                         "Select $label"
                                     },
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
                                 )
 
                                 if (hasSearch) {
@@ -435,7 +440,9 @@ fun <T> CommonDropDown(
                                             )
 
                                         } else {
-                                            if (isMultiSelect && isSelectAll && items.size >= 3) {
+                                            val selectionLimit = if (isMultiSelect && maxSelection > 0) maxSelection else null
+                                            val selectAllExceedsLimit = selectionLimit != null && items.size > selectionLimit
+                                            if (isMultiSelect && isSelectAll && items.size >= 3 && !selectAllExceedsLimit) {
                                                 val isAllSelected = items.all { tempSelectedItems.contains(it) }
                                                 val primaryColor = MaterialTheme.colorScheme.primary
                                                 Row(
@@ -487,6 +494,9 @@ fun <T> CommonDropDown(
                                                     } else {
                                                         item == selectedItem
                                                     }
+                                                val isAtSelectionLimit = selectionLimit != null &&
+                                                    tempSelectedItems.size >= selectionLimit
+                                                val isItemDisabled = isAtSelectionLimit && !isSelected
 
                                                 Row(
                                                     modifier = Modifier
@@ -498,24 +508,31 @@ fun <T> CommonDropDown(
                                                                 Color.Transparent
                                                             }
                                                         )
-                                                        .clickable {
-
-                                                            if (isMultiSelect) {
-
-                                                                tempSelectedItems =
-                                                                    if (tempSelectedItems.contains(item)) {
-                                                                        tempSelectedItems - item
-                                                                    } else {
-                                                                        tempSelectedItems + item
-                                                                    }
-
+                                                        .then(
+                                                            if (isItemDisabled) {
+                                                                Modifier
                                                             } else {
-
-                                                                onItemSelected(item)
-                                                                displayText = formatSingleItem(item)
-                                                                showDialog = false
+                                                                Modifier.clickable {
+                                                                    if (isMultiSelect) {
+                                                                        tempSelectedItems =
+                                                                            if (tempSelectedItems.contains(item)) {
+                                                                                tempSelectedItems - item
+                                                                            } else if (
+                                                                                selectionLimit == null ||
+                                                                                tempSelectedItems.size < selectionLimit
+                                                                            ) {
+                                                                                tempSelectedItems + item
+                                                                            } else {
+                                                                                tempSelectedItems
+                                                                            }
+                                                                    } else {
+                                                                        onItemSelected(item)
+                                                                        displayText = formatSingleItem(item)
+                                                                        showDialog = false
+                                                                    }
+                                                                }
                                                             }
-                                                        }
+                                                        )
                                                         .padding(14.dp),
                                                     horizontalArrangement = Arrangement.Start,
                                                     verticalAlignment = Alignment.CenterVertically
@@ -525,9 +542,18 @@ fun <T> CommonDropDown(
 
                                                         CustomCheckbox(
                                                             checked = isSelected,
-                                                            onCheckedChange = {
+                                                            enabled = !isItemDisabled,
+                                                            onCheckedChange = { checked ->
+                                                                if (
+                                                                    checked &&
+                                                                    selectionLimit != null &&
+                                                                    tempSelectedItems.size >= selectionLimit &&
+                                                                    !tempSelectedItems.contains(item)
+                                                                ) {
+                                                                    return@CustomCheckbox
+                                                                }
                                                                 tempSelectedItems =
-                                                                    if (it) {
+                                                                    if (checked) {
                                                                         tempSelectedItems + item
                                                                     } else {
                                                                         tempSelectedItems - item
@@ -542,10 +568,10 @@ fun <T> CommonDropDown(
                                                         text = (itemLabel?.invoke(item)
                                                             ?: item.toString()).replace("_", " "),
                                                         style = MaterialTheme.typography.bodyMedium,
-                                                        color = if (isSelected) {
-                                                            MaterialTheme.colorScheme.primary
-                                                        } else {
-                                                            Color.Black
+                                                        color = when {
+                                                            isItemDisabled -> grayColor
+                                                            isSelected -> MaterialTheme.colorScheme.primary
+                                                            else -> Color.Black
                                                         }
                                                     )
                                                 }

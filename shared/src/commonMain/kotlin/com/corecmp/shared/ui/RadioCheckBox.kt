@@ -29,7 +29,8 @@ fun CustomCheckbox(
     size: Dp = 24.dp,
     borderColor: Color = Color.Gray,
     checkedColor: Color = Color(0xFF2196F3), // Blue
-    checkmarkColor: Color = Color.White
+    checkmarkColor: Color = Color.White,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = Modifier
@@ -38,13 +39,23 @@ fun CustomCheckbox(
             .background(if (checked) checkedColor else Color.Transparent)
             .border(
                 width = 2.dp,
-                color = if (checked) checkedColor else borderColor,
+                color = when {
+                    !enabled -> grayColor.copy(alpha = 0.35f)
+                    checked -> checkedColor
+                    else -> borderColor
+                },
                 shape = RoundedCornerShape(4.dp)
             )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) { onCheckedChange(!checked) },
+            .then(
+                if (enabled) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onCheckedChange(!checked) }
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.Center
     ) {
         if (checked) {

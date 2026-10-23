@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-019",
+  "latest": "1.0.0.1-rc-021",
   "versions": [
+    "1.0.0.1-rc-021",
     "1.0.0.1-rc-019",
     "1.0.0.1-rc-018",
     "1.0.0.1-rc-016",
@@ -23,6 +24,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-021",
+      "message": "Multi-select dropdown can cap selections, and the dialog title is smaller.",
+      "publishedAt": "2026-10-23T08:58:19Z",
+      "commit": "ef30a15110135dcba62f9d4704a22e7da6a9784c"
+    },
     {
       "version": "1.0.0.1-rc-019",
       "message": "CustomImage uses Coil singleton; debug logs off by default",
@@ -133,7 +140,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-10-23T08:58:19Z",
+  "updatedAt": "2026-10-23T09:03:13Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -142,6 +149,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "1.0.0.1-rc-021",
-  "status": "in-progress"
+  "inProgress": "",
+  "status": "passing"
 }
