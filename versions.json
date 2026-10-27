@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-022",
+  "latest": "1.0.0.1-rc-023",
   "versions": [
+    "1.0.0.1-rc-023",
     "1.0.0.1-rc-022",
     "1.0.0.1-rc-021",
     "1.0.0.1-rc-019",
@@ -25,6 +26,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-023",
+      "message": "maxSelection in multiselection dropdown",
+      "publishedAt": "2026-10-27T07:04:24Z",
+      "commit": "509479ea3277be64e40fdc4068ab89a6f9692c0e"
+    },
     {
       "version": "1.0.0.1-rc-022",
       "message": "maxSelection in multiselection dropdown",
@@ -147,7 +154,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-10-27T07:04:24Z",
+  "updatedAt": "2026-10-27T07:04:49Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -156,6 +163,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "1.0.0.1-rc-023",
-  "status": "in-progress"
+  "inProgress": "",
+  "status": "passing"
 }

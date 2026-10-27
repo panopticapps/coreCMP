@@ -389,21 +389,42 @@ fun <T> CommonDropDown(
                                         } else {
                                             "Select $label"
                                         },
-                                        style = MaterialTheme.typography.titleMedium
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.weight(1f, fill = false)
                                     )
 
                                     if (isMultiSelect && maxSelection != null) {
-                                        Text(
-                                            text = "${tempSelectedItems.size}/$maxSelection",
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.SemiBold
-                                            ),
-                                            color = if (tempSelectedItems.size >= maxSelection) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                grayColor
-                                            }
-                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        val isLimitReached = tempSelectedItems.size >= maxSelection
+                                        val primaryColor = MaterialTheme.colorScheme.primary
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = if (isLimitReached) {
+                                                        primaryColor.copy(alpha = 0.12f)
+                                                    } else {
+                                                        grayColor.copy(alpha = 0.12f)
+                                                    },
+                                                    shape = RoundedCornerShape(12.dp)
+                                                )
+                                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "${tempSelectedItems.size}/$maxSelection",
+                                                style = MaterialTheme.typography.labelSmall.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp
+                                                ),
+                                                color = if (isLimitReached) {
+                                                    primaryColor
+                                                } else {
+                                                    grayColor
+                                                },
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
                                     }
                                 }
 
