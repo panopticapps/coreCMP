@@ -30,39 +30,41 @@ fun CustomCheckbox(
     borderColor: Color = Color.Gray,
     checkedColor: Color = Color(0xFF2196F3), // Blue
     checkmarkColor: Color = Color.White,
-    enabled: Boolean = true,
+    enabled: Boolean = true
 ) {
+    val actualBorderColor = if (enabled) {
+        if (checked) checkedColor else borderColor
+    } else {
+        borderColor.copy(alpha = 0.38f)
+    }
+    val actualBgColor = if (checked) {
+        if (enabled) checkedColor else checkedColor.copy(alpha = 0.38f)
+    } else {
+        Color.Transparent
+    }
+
     Box(
         modifier = Modifier
             .size(size)
             .clip(RoundedCornerShape(4.dp))
-            .background(if (checked) checkedColor else Color.Transparent)
+            .background(actualBgColor)
             .border(
                 width = 2.dp,
-                color = when {
-                    !enabled -> grayColor.copy(alpha = 0.35f)
-                    checked -> checkedColor
-                    else -> borderColor
-                },
+                color = actualBorderColor,
                 shape = RoundedCornerShape(4.dp)
             )
-            .then(
-                if (enabled) {
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { onCheckedChange(!checked) }
-                } else {
-                    Modifier
-                }
-            ),
+            .clickable(
+                enabled = enabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onCheckedChange(!checked) },
         contentAlignment = Alignment.Center
     ) {
         if (checked) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Checked",
-                tint = checkmarkColor,
+                tint = if (enabled) checkmarkColor else checkmarkColor.copy(alpha = 0.7f),
                 modifier = Modifier.size(size / 1.5f)
             )
         }

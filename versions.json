@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-021",
+  "latest": "1.0.0.1-rc-022",
   "versions": [
+    "1.0.0.1-rc-022",
     "1.0.0.1-rc-021",
     "1.0.0.1-rc-019",
     "1.0.0.1-rc-018",
@@ -24,6 +25,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-022",
+      "message": "maxSelection in multiselection dropdown",
+      "publishedAt": "2026-10-27T05:45:40Z",
+      "commit": "34bbf33fb50a383b4fb24c1be0b0f3dd684e64f8"
+    },
     {
       "version": "1.0.0.1-rc-021",
       "message": "Multi-select dropdown can cap selections, and the dialog title is smaller.",
@@ -140,7 +147,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-10-27T05:45:40Z",
+  "updatedAt": "2026-10-27T05:46:33Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -149,6 +156,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "1.0.0.1-rc-022",
-  "status": "in-progress"
+  "inProgress": "",
+  "status": "passing"
 }
