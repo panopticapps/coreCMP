@@ -30,6 +30,8 @@ import com.corecmp.shared.api.CoreCmpLogger
 import com.corecmp.shared.api.HttpClientProvider
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.foundation.layout.Box
@@ -250,7 +252,8 @@ fun CustomImage(
                         initialValue = null,
                         key1 = cleanPath,
                     ) {
-                        value = fetchPreparedRemoteImageBytes(cleanPath)
+                        // Detach Ktor/OkHttp from composition Job (see fetchDetached).
+                        value = fetchDetached { fetchPreparedRemoteImageBytes(cleanPath) }
                     }
                     val bytes = prepared
                     if (bytes == null) {
@@ -352,25 +355,31 @@ object CustomImageResourceResolver {
 
 private object LottiePlaceholderCache {
     private val jsonByKey = mutableMapOf<String, String>()
+    private val mutex = Mutex()
 
     suspend fun resolveJson(placeholder: Placeholder): String? {
         return try {
             when (placeholder) {
                 is Placeholder.LottieUrl -> {
-                    jsonByKey.getOrPut(placeholder.url) {
-                        HttpClientProvider.client.get(placeholder.url).bodyAsText()
+                    mutex.withLock { jsonByKey[placeholder.url] }?.let { return it }
+                    // Detach from Compose cancellation so OkHttp cleanup never runs on main.
+                    fetchDetached {
+                        val text = HttpClientProvider.client.get(placeholder.url).bodyAsText()
+                        mutex.withLock { jsonByKey[placeholder.url] = text }
+                        text
                     }
                 }
 
                 is Placeholder.LottieJson -> {
                     val pathOrJson = placeholder.json
                     if (pathOrJson.endsWith(".json", ignoreCase = true)) {
-                        jsonByKey[pathOrJson] ?: run {
+                        mutex.withLock { jsonByKey[pathOrJson] }?.let { return it }
+                        fetchDetached {
                             val decoded = CustomImageResourceResolver.resolveBytes
                                 ?.invoke(pathOrJson)
                                 ?.decodeToString()
                             if (decoded != null) {
-                                jsonByKey[pathOrJson] = decoded
+                                mutex.withLock { jsonByKey[pathOrJson] = decoded }
                             }
                             decoded
                         }

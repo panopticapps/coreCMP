@@ -7,6 +7,10 @@ import com.corecmp.shared.api.HttpClientProvider
 import io.ktor.client.request.get
 import io.ktor.client.statement.readRawBytes
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.cancellation.CancellationException
@@ -16,6 +20,23 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 private const val MAX_IMAGE_CACHE_ENTRIES = 48
 private val remoteImageBytesCache = LinkedHashMap<String, ByteArray>(MAX_IMAGE_CACHE_ENTRIES)
 private val remoteImageMutex = Mutex()
+
+/**
+ * App-scoped fetches for Compose-driven image/Lottie loads.
+ *
+ * Compose cancels [androidx.compose.runtime.produceState] on the main thread when a
+ * SubcomposeLayout slot is reused. If that cancel is tied directly to a Ktor/OkHttp
+ * call, OkHttp closes the SSL socket on main and crashes with
+ * NetworkOnMainThreadException → CompletionHandlerException.
+ *
+ * Running the request in this scope keeps Ktor off the composition Job, so UI dispose
+ * only stops awaiting — it does not cancel/close the socket on main. Successful
+ * responses still fill the in-memory caches for the next composition.
+ */
+internal val customImageFetchScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+internal suspend fun <T> fetchDetached(block: suspend () -> T): T =
+    customImageFetchScope.async { block() }.await()
 
 internal fun redactImageUrl(url: String): String = url.substringBefore('?')
 
