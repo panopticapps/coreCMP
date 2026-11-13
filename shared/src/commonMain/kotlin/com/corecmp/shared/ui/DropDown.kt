@@ -82,8 +82,8 @@ fun <T> CommonDropDown(
     error: String? = null,
     showSearchForcefully: Boolean = false,
     showFullList: Boolean = false,
-    /** Wrap dialog height to list when count is below this and search is off. Use 0 for legacy fixed height. */
-    compactDialogBelowItemCount: Int = 7,
+    /** Wrap dialog height to the list when the visible count is below this. Use 0 for a fixed tall dialog. */
+    compactDialogBelowItemCount: Int = 8,
     modifier: Modifier = Modifier,
     dropDownBackGround : Color = whiteColor,
     labelColor :Color = blackColor
@@ -231,7 +231,9 @@ fun <T> CommonDropDown(
             }
         }
 
+        // Fewer than 8 items: never show search, even if showSearchForcefully is set.
         val showSearch = items.size > 10
+        val hasSearch = items.size >= 8 && (showSearch || showSearchForcefully)
 
         val filteredItems by remember(searchText, items) {
             derivedStateOf {
@@ -324,10 +326,8 @@ fun <T> CommonDropDown(
             }
 
             if (showDialog) {
-                val hasSearch = showSearch || showSearchForcefully
                 val useCompactDialog = compactDialogBelowItemCount > 0 &&
-                    !hasSearch &&
-                    filteredItems.size < compactDialogBelowItemCount
+                    filteredItems.size < maxOf(compactDialogBelowItemCount, 8)
                 val dialogScrollState = rememberScrollState()
                 Dialog(
                     onDismissRequest = {
@@ -343,23 +343,32 @@ fun <T> CommonDropDown(
                     )
                 ) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize() // Pura screen cover karega
-                            .pointerInput(Unit) {
-                                detectTapGestures {
-                                    showDialog = false // Backdrop click par band hoga
+                        modifier = if (useCompactDialog) {
+                            Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                        } else {
+                            Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures {
+                                        showDialog = false
+                                    }
                                 }
-                            },
+                        },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.9f)
                                 .then(
-                                    if (hasSearch || !useCompactDialog) {
-                                        Modifier.heightIn(min = 250.dp, max = 600.dp)
+                                    if (useCompactDialog) {
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .wrapContentHeight()
                                     } else {
-                                        Modifier.heightIn(max = 600.dp)
+                                        Modifier
+                                            .fillMaxWidth(0.9f)
+                                            .heightIn(min = 250.dp, max = 600.dp)
                                     }
                                 )
                                 .background(whiteColor, RoundedCornerShape(12.dp))
@@ -369,10 +378,10 @@ fun <T> CommonDropDown(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .then(
-                                        if (hasSearch || !useCompactDialog) {
-                                            Modifier.fillMaxHeight()
-                                        } else {
+                                        if (useCompactDialog) {
                                             Modifier.wrapContentHeight()
+                                        } else {
+                                            Modifier.fillMaxHeight()
                                         }
                                     )
                                     .padding(16.dp)
@@ -447,24 +456,25 @@ fun <T> CommonDropDown(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Box(
-                                    modifier = if (hasSearch || !useCompactDialog) {
+                                    modifier = if (useCompactDialog) {
                                         Modifier
-                                            .weight(1f)
                                             .fillMaxWidth()
+                                            .heightIn(max = 420.dp)
+                                            .wrapContentHeight()
                                     } else {
                                         Modifier
-                                            .weight(1f, fill = false)
+                                            .weight(1f)
                                             .fillMaxWidth()
                                     }
                                 ) {
                                     Column(
-                                        modifier = if (hasSearch || !useCompactDialog) {
+                                        modifier = if (useCompactDialog) {
                                             Modifier
-                                                .fillMaxSize()
+                                                .fillMaxWidth()
                                                 .verticalScroll(dialogScrollState)
                                         } else {
                                             Modifier
-                                                .fillMaxWidth()
+                                                .fillMaxSize()
                                                 .verticalScroll(dialogScrollState)
                                         }
                                     ) {

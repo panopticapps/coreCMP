@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-024",
+  "latest": "1.0.0.1-rc-025",
   "versions": [
+    "1.0.0.1-rc-025",
     "1.0.0.1-rc-024",
     "1.0.0.1-rc-023",
     "1.0.0.1-rc-022",
@@ -27,6 +28,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-025",
+      "message": "Dropdown: hide search below 8 items and shrink the popup to the list",
+      "publishedAt": "2026-11-13T11:53:38Z",
+      "commit": "df80193cd70bea92e67fb4675ddc5f868551f7b4"
+    },
     {
       "version": "1.0.0.1-rc-024",
       "message": "Fix CustomImage/Lottie NetworkOnMainThread crash when Compose cancels Ktor/OkHttp on the main thread",
@@ -161,7 +168,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-10-31T07:41:25Z",
+  "updatedAt": "2026-11-13T12:03:16Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
