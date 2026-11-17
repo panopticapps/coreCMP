@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-025",
+  "latest": "1.0.0.1-rc-026",
   "versions": [
+    "1.0.0.1-rc-026",
     "1.0.0.1-rc-025",
     "1.0.0.1-rc-024",
     "1.0.0.1-rc-023",
@@ -28,6 +29,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-026",
+      "message": "Close OkHttp response bodies off the main thread so navigation ViewModel clear does not crash",
+      "publishedAt": "2026-11-17T07:08:23Z",
+      "commit": "5fe3e9d560c8c98ffb400f3bec8e51fb1aaa6dad"
+    },
     {
       "version": "1.0.0.1-rc-025",
       "message": "Dropdown: hide search below 8 items and shrink the popup to the list",
@@ -168,7 +175,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-11-17T07:08:23Z",
+  "updatedAt": "2026-11-17T07:09:27Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -177,6 +184,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "1.0.0.1-rc-026",
-  "status": "in-progress"
+  "inProgress": "",
+  "status": "passing"
 }
