@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -81,6 +83,11 @@ fun <T> CommonDropDown(
     placeholderColor: Color = grayColor,
     error: String? = null,
     showSearchForcefully: Boolean = false,
+    /**
+     * Server-backed search. The field stays visible when the result list drops below 8.
+     * Clearing the query, the clear icon, opening the list, or Reset calls [onType] with "".
+     */
+    serverSearch: Boolean = false,
     showFullList: Boolean = false,
     /** Wrap dialog height to the list when the visible count is below this. Use 0 for a fixed tall dialog. */
     compactDialogBelowItemCount: Int = 8,
@@ -232,10 +239,11 @@ fun <T> CommonDropDown(
         }
 
         // Fewer than 8 items: never show search, even if showSearchForcefully is set.
+        // serverSearch stays visible so a short API result cannot trap the user.
         val showSearch = items.size > 10
-        val hasSearch = items.size >= 8 && (showSearch || showSearchForcefully)
+        val hasSearch = serverSearch || (items.size >= 8 && (showSearch || showSearchForcefully))
 
-        val filteredItems by remember(searchText, items) {
+        val filteredItems by remember(searchText, items, serverSearch, showFullList) {
             derivedStateOf {
                 val filtered = if (searchText.isBlank()) items
                 else
@@ -244,7 +252,7 @@ fun <T> CommonDropDown(
                             itemLabel?.invoke(item) ?: item.toString() // Logic yahan bhi same
                         label.contains(searchText, ignoreCase = true)
                     }
-                if (showFullList) filtered
+                if (showFullList || serverSearch) filtered
                 else filtered.take(50)
             }
         }
@@ -318,7 +326,8 @@ fun <T> CommonDropDown(
                             keyboardController?.hide()
                             focusManager.clearFocus()
                             searchText = ""
-                            if (items.isNotEmpty())
+                            if (serverSearch) onType("")
+                            if (items.isNotEmpty() || serverSearch)
                                 showDialog = true
                             onClick()
                         }
@@ -449,7 +458,17 @@ fun <T> CommonDropDown(
                                         },
                                         placeholderText = "Search...",
                                         modifier = Modifier.fillMaxWidth(),
-                                        radius = 6
+                                        radius = 6,
+                                        trailingIcon = if (serverSearch && searchText.isNotEmpty()) {
+                                            Icons.Filled.Close
+                                        } else {
+                                            null
+                                        },
+                                        trailingIconSize = 16,
+                                        onTrailingClicked = {
+                                            searchText = ""
+                                            onType("")
+                                        }
                                     )
                                 }
 
@@ -650,6 +669,10 @@ fun <T> CommonDropDown(
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
                                                 .clickable {
+                                                    if (serverSearch) {
+                                                        searchText = ""
+                                                        onType("")
+                                                    }
 
                                                     displayText = ""
 
