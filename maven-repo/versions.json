@@ -34,7 +34,7 @@
       "version": "1.0.0.1-rc-027",
       "message": "Keep dropdown search available when a server search returns fewer than 8 rows",
       "publishedAt": "2026-11-20T12:31:39Z",
-      "commit": "f7713c5adaeda2eed5939bd1c0eabcb371f8a538"
+      "commit": "eab418314400cafc93ab6ade6116f6e689928b82"
     },
     {
       "version": "1.0.0.1-rc-026",
@@ -182,7 +182,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-11-20T12:31:39Z",
+  "updatedAt": "2026-11-20T12:43:36Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
