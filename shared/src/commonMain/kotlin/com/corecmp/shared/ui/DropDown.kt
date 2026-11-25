@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -334,7 +338,7 @@ fun <T> CommonDropDown(
             if (showDialog) {
                 val useCompactDialog = compactDialogBelowItemCount > 0 &&
                     filteredItems.size < maxOf(compactDialogBelowItemCount, 8)
-                val dialogScrollState = rememberScrollState()
+                val dialogLazyListState = rememberLazyListState()
                 Dialog(
                     onDismissRequest = {
                         showDialog = false
@@ -344,37 +348,31 @@ fun <T> CommonDropDown(
                     properties = DialogProperties(
                         dismissOnBackPress = true,
                         dismissOnClickOutside = true,
-                        // Match pre-merge dialog width; false + fillMaxWidth(0.9f) made rows look broken
-                        usePlatformDefaultWidth = true
+                        usePlatformDefaultWidth = false
                     )
                 ) {
                     Box(
-                        modifier = if (useCompactDialog) {
-                            Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight()
-                        } else {
-                            Modifier
-                                .fillMaxSize()
-                                .pointerInput(Unit) {
-                                    detectTapGestures {
-                                        showDialog = false
-                                    }
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .imePadding()
+                            .systemBarsPadding()
+                            .pointerInput(Unit) {
+                                detectTapGestures {
+                                    showDialog = false
                                 }
-                        },
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 440.dp)
+                                .padding(horizontal = 24.dp)
                                 .then(
                                     if (useCompactDialog) {
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .wrapContentHeight()
+                                        Modifier.wrapContentHeight()
                                     } else {
-                                        Modifier
-                                            .fillMaxWidth(0.9f)
-                                            .heightIn(min = 250.dp, max = 600.dp)
+                                        Modifier.heightIn(min = 250.dp, max = 560.dp)
                                     }
                                 )
                                 .background(whiteColor, RoundedCornerShape(12.dp))
@@ -472,92 +470,89 @@ fun <T> CommonDropDown(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Box(
-                                    modifier = if (useCompactDialog) {
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(max = 420.dp)
-                                            .wrapContentHeight()
-                                    } else {
-                                        Modifier
-                                            .weight(1f)
-                                            .fillMaxWidth()
-                                    }
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (useCompactDialog) {
+                                                Modifier.weight(1f, fill = false)
+                                            } else {
+                                                Modifier.weight(1f)
+                                            }
+                                        )
                                 ) {
-                                    Column(
-                                        modifier = if (useCompactDialog) {
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .verticalScroll(dialogScrollState)
-                                        } else {
-                                            Modifier
-                                                .fillMaxSize()
-                                                .verticalScroll(dialogScrollState)
-                                        }
+                                    LazyColumn(
+                                        state = dialogLazyListState,
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-
                                         if (filteredItems.isEmpty()) {
-
-                                            Text(
-                                                text = "No match found",
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(12.dp),
-                                                color = grayColor,
-                                                fontSize = 12.sp
-                                            )
-
-                                        } else {
-                                            if (isMultiSelect && isSelectAll && items.size >= 3 && (maxSelection == null || maxSelection >= items.size)) {
-                                                val targetItems = filteredItems
-                                                val isAllSelected = targetItems.isNotEmpty() && targetItems.all { tempSelectedItems.contains(it) }
-                                                val primaryColor = MaterialTheme.colorScheme.primary
-                                                val toggleSelectAll = {
-                                                    tempSelectedItems = if (isAllSelected) {
-                                                        tempSelectedItems - targetItems.toSet()
-                                                    } else {
-                                                        val combined = tempSelectedItems + targetItems
-                                                        if (maxSelection != null && combined.size > maxSelection) {
-                                                            combined.take(maxSelection).toSet()
-                                                        } else {
-                                                            combined
-                                                        }
-                                                    }
-                                                }
-                                                Row(
+                                            item(key = "empty_state") {
+                                                Text(
+                                                    text = "No match found",
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 6.dp)
-                                                        .background(
-                                                            color = primaryColor.copy(alpha = 0.06f),
-                                                            shape = RoundedCornerShape(8.dp)
-                                                        )
-                                                        .clickable {
-                                                            toggleSelectAll()
+                                                        .padding(12.dp),
+                                                    color = grayColor,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        } else {
+                                            if (isMultiSelect && isSelectAll && items.size >= 3 && (maxSelection == null || maxSelection >= items.size)) {
+                                                item(key = "select_all_header") {
+                                                    val targetItems = filteredItems
+                                                    val isAllSelected = targetItems.isNotEmpty() && targetItems.all { tempSelectedItems.contains(it) }
+                                                    val primaryColor = MaterialTheme.colorScheme.primary
+                                                    val toggleSelectAll = {
+                                                        tempSelectedItems = if (isAllSelected) {
+                                                            tempSelectedItems - targetItems.toSet()
+                                                        } else {
+                                                            val combined = tempSelectedItems + targetItems
+                                                            if (maxSelection != null && combined.size > maxSelection) {
+                                                                combined.take(maxSelection).toSet()
+                                                            } else {
+                                                                combined
+                                                            }
                                                         }
-                                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-
-                                                    CustomCheckbox(
-                                                        checked = isAllSelected,
-                                                        onCheckedChange = { _ ->
-                                                            toggleSelectAll()
-                                                        }
-                                                    )
-                                                    Spacer(modifier = Modifier.width(12.dp))
-                                                    Text(
-                                                        text = if (isAllSelected) "Unselect All" else "Select All",
-                                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = primaryColor
+                                                    }
+                                                    Row(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(vertical = 6.dp)
+                                                            .background(
+                                                                color = primaryColor.copy(alpha = 0.06f),
+                                                                shape = RoundedCornerShape(8.dp)
+                                                            )
+                                                            .clickable {
+                                                                toggleSelectAll()
+                                                            }
+                                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        CustomCheckbox(
+                                                            checked = isAllSelected,
+                                                            onCheckedChange = { _ ->
+                                                                toggleSelectAll()
+                                                            }
                                                         )
-                                                    )
+                                                        Spacer(modifier = Modifier.width(12.dp))
+                                                        Text(
+                                                            text = if (isAllSelected) "Unselect All" else "Select All",
+                                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = primaryColor
+                                                            )
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(8.dp))
                                                 }
-                                                Spacer(modifier = Modifier.height(8.dp))
                                             }
 
-                                            filteredItems.forEachIndexed { index, item ->
-
+                                            itemsIndexed(
+                                                items = filteredItems,
+                                                key = { index, item ->
+                                                    val label = itemLabel?.invoke(item) ?: item?.toString()
+                                                    if (label != null) "$label-$index" else index
+                                                }
+                                            ) { index, item ->
                                                 val isSelected =
                                                     if (isMultiSelect) {
                                                         tempSelectedItems.contains(item)
@@ -581,9 +576,7 @@ fun <T> CommonDropDown(
                                                             }
                                                         )
                                                         .clickable(enabled = !isItemDisabled) {
-
                                                             if (isMultiSelect) {
-
                                                                 tempSelectedItems =
                                                                     if (tempSelectedItems.contains(item)) {
                                                                         tempSelectedItems - item
@@ -594,9 +587,7 @@ fun <T> CommonDropDown(
                                                                             tempSelectedItems
                                                                         }
                                                                     }
-
                                                             } else {
-
                                                                 onItemSelected(item)
                                                                 displayText = formatSingleItem(item)
                                                                 showDialog = false
@@ -606,9 +597,7 @@ fun <T> CommonDropDown(
                                                     horizontalArrangement = Arrangement.Start,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-
                                                     if (isMultiSelect) {
-
                                                         CustomCheckbox(
                                                             checked = isSelected,
                                                             enabled = !isItemDisabled,
@@ -625,7 +614,6 @@ fun <T> CommonDropDown(
                                                                     }
                                                             }
                                                         )
-
                                                         Spacer(modifier = Modifier.width(8.dp))
                                                     }
 
