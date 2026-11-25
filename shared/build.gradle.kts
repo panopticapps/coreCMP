@@ -76,6 +76,7 @@ kotlin {
             api(libs.material3)
             api(libs.compose.components.resources)
             api(libs.material.icons.core)
+            api(libs.material.icons.extended)
 
             // DI
             api(libs.koin.core)
