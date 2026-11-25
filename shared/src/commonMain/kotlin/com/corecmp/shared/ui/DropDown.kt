@@ -328,11 +328,13 @@ fun <T> CommonDropDown(
                         ) {
                             keyboardController?.hide()
                             focusManager.clearFocus()
-                            if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                            if ((items.isEmpty() || filteredItems.isEmpty()) && searchText.isNotBlank()) {
                                 searchText = ""
                                 onType("")
+                                showDialog = true
+                            } else if (items.isNotEmpty() || serverSearch) {
+                                showDialog = true
                             }
-                            showDialog = true
                             onClick()
                         }
                 )
@@ -344,7 +346,7 @@ fun <T> CommonDropDown(
                 val dialogLazyListState = rememberLazyListState()
                 Dialog(
                     onDismissRequest = {
-                        if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                        if (filteredItems.isEmpty() && searchText.isNotBlank()) {
                             searchText = ""
                             onType("")
                         }
@@ -365,7 +367,7 @@ fun <T> CommonDropDown(
                             .systemBarsPadding()
                             .pointerInput(Unit) {
                                 detectTapGestures {
-                                    if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                    if (filteredItems.isEmpty() && searchText.isNotBlank()) {
                                         searchText = ""
                                         onType("")
                                     }
@@ -704,7 +706,7 @@ fun <T> CommonDropDown(
                                             color = Color.Gray,
                                             modifier = Modifier
                                                 .clickable {
-                                                    if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                                    if (filteredItems.isEmpty() && searchText.isNotBlank()) {
                                                         searchText = ""
                                                         onType("")
                                                     }
@@ -720,7 +722,7 @@ fun <T> CommonDropDown(
                                                 color = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier
                                                     .clickable {
-                                                        if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                                        if (filteredItems.isEmpty() && searchText.isNotBlank()) {
                                                             searchText = ""
                                                             onType("")
                                                         }
