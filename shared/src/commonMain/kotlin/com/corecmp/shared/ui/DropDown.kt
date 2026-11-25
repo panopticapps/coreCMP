@@ -324,8 +324,6 @@ fun <T> CommonDropDown(
                         ) {
                             keyboardController?.hide()
                             focusManager.clearFocus()
-                            searchText = ""
-                            if (serverSearch) onType("")
                             if (items.isNotEmpty() || serverSearch)
                                 showDialog = true
                             onClick()
@@ -335,8 +333,7 @@ fun <T> CommonDropDown(
 
             if (showDialog) {
                 val useCompactDialog = compactDialogBelowItemCount > 0 &&
-                    !hasSearch &&
-                    filteredItems.size < compactDialogBelowItemCount
+                    filteredItems.size < maxOf(compactDialogBelowItemCount, 8)
                 val dialogScrollState = rememberScrollState()
                 Dialog(
                     onDismissRequest = {
@@ -674,8 +671,8 @@ fun <T> CommonDropDown(
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier
                                                 .clickable {
+                                                    searchText = ""
                                                     if (serverSearch) {
-                                                        searchText = ""
                                                         onType("")
                                                     }
 
