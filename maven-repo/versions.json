@@ -189,7 +189,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-11-25T09:14:12Z",
+  "updatedAt": "2026-11-25T09:34:13Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -198,6 +198,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "",
-  "status": "passing"
+  "inProgress": "1.0.0.1-rc-031",
+  "status": "in-progress"
 }
