@@ -238,19 +238,18 @@ fun <T> CommonDropDown(
             }
         }
 
-        // Fewer than 8 items: never show search, even if showSearchForcefully is set.
-        // serverSearch stays visible so a short API result cannot trap the user.
+        // Search is always shown for serverSearch, forceful search, active search, or when items count exceeds threshold.
         val showSearch = items.size > 10
-        val hasSearch = serverSearch || (items.size >= 8 && (showSearch || showSearchForcefully))
+        val hasSearch = serverSearch || showSearchForcefully || searchText.isNotEmpty() || showSearch
 
         val filteredItems by remember(searchText, items, serverSearch, showFullList) {
             derivedStateOf {
-                val filtered = if (searchText.isBlank()) items
+                val filtered = if (serverSearch || searchText.isBlank()) items
                 else
                     items.filter { item ->
                         val label =
-                            itemLabel?.invoke(item) ?: item.toString() // Logic yahan bhi same
-                        label.contains(searchText, ignoreCase = true)
+                            (itemLabel?.invoke(item) ?: item.toString()).replace("_", " ")
+                        label.contains(searchText.trim(), ignoreCase = true)
                     }
                 if (showFullList || serverSearch) filtered
                 else filtered.take(50)
@@ -336,7 +335,8 @@ fun <T> CommonDropDown(
 
             if (showDialog) {
                 val useCompactDialog = compactDialogBelowItemCount > 0 &&
-                    filteredItems.size < maxOf(compactDialogBelowItemCount, 8)
+                    !hasSearch &&
+                    filteredItems.size < compactDialogBelowItemCount
                 val dialogScrollState = rememberScrollState()
                 Dialog(
                     onDismissRequest = {
@@ -459,7 +459,7 @@ fun <T> CommonDropDown(
                                         placeholderText = "Search...",
                                         modifier = Modifier.fillMaxWidth(),
                                         radius = 6,
-                                        trailingIcon = if (serverSearch && searchText.isNotEmpty()) {
+                                        trailingIcon = if (searchText.isNotEmpty()) {
                                             Icons.Filled.Close
                                         } else {
                                             null
@@ -511,8 +511,21 @@ fun <T> CommonDropDown(
 
                                         } else {
                                             if (isMultiSelect && isSelectAll && items.size >= 3 && (maxSelection == null || maxSelection >= items.size)) {
-                                                val isAllSelected = items.all { tempSelectedItems.contains(it) }
+                                                val targetItems = filteredItems
+                                                val isAllSelected = targetItems.isNotEmpty() && targetItems.all { tempSelectedItems.contains(it) }
                                                 val primaryColor = MaterialTheme.colorScheme.primary
+                                                val toggleSelectAll = {
+                                                    tempSelectedItems = if (isAllSelected) {
+                                                        tempSelectedItems - targetItems.toSet()
+                                                    } else {
+                                                        val combined = tempSelectedItems + targetItems
+                                                        if (maxSelection != null && combined.size > maxSelection) {
+                                                            combined.take(maxSelection).toSet()
+                                                        } else {
+                                                            combined
+                                                        }
+                                                    }
+                                                }
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -522,11 +535,7 @@ fun <T> CommonDropDown(
                                                             shape = RoundedCornerShape(8.dp)
                                                         )
                                                         .clickable {
-                                                            tempSelectedItems = if (isAllSelected) {
-                                                                emptySet()
-                                                            } else {
-                                                                items.toSet()
-                                                            }
+                                                            toggleSelectAll()
                                                         }
                                                         .padding(horizontal = 14.dp, vertical = 12.dp),
                                                     verticalAlignment = Alignment.CenterVertically
@@ -534,12 +543,8 @@ fun <T> CommonDropDown(
 
                                                     CustomCheckbox(
                                                         checked = isAllSelected,
-                                                        onCheckedChange = { checked ->
-                                                            tempSelectedItems = if (checked) {
-                                                                items.toSet()
-                                                            } else {
-                                                                emptySet()
-                                                            }
+                                                        onCheckedChange = { _ ->
+                                                            toggleSelectAll()
                                                         }
                                                     )
                                                     Spacer(modifier = Modifier.width(12.dp))

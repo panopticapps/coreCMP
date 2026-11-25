@@ -1,8 +1,9 @@
 {
   "groupId": "com.corecmp",
   "artifactId": "shared",
-  "latest": "1.0.0.1-rc-027",
+  "latest": "1.0.0.1-rc-030",
   "versions": [
+    "1.0.0.1-rc-030",
     "1.0.0.1-rc-027",
     "1.0.0.1-rc-026",
     "1.0.0.1-rc-025",
@@ -30,6 +31,12 @@
     "1.0.0"
   ],
   "releases": [
+    {
+      "version": "1.0.0.1-rc-030",
+      "message": "dropdown fixes",
+      "publishedAt": "2026-11-25T09:13:39Z",
+      "commit": "f4ab336ad88f77bb84ffd80d1f6856c95d699104"
+    },
     {
       "version": "1.0.0.1-rc-027",
       "message": "Keep dropdown search available when a server search returns fewer than 8 rows",
@@ -182,7 +189,7 @@
     }
   ],
   "repository": "https://panopticapps.github.io/coreCMP/maven-repo/",
-  "updatedAt": "2026-11-25T09:13:39Z",
+  "updatedAt": "2026-11-25T09:14:12Z",
   "failures": [
     {
       "version": "1.0.0.1-rc-017",
@@ -191,6 +198,6 @@
       "logFile": "logs/build-1.0.0.1-rc-017-failed.log"
     }
   ],
-  "inProgress": "1.0.0.1-rc-030",
-  "status": "in-progress"
+  "inProgress": "",
+  "status": "passing"
 }
