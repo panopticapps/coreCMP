@@ -328,8 +328,11 @@ fun <T> CommonDropDown(
                         ) {
                             keyboardController?.hide()
                             focusManager.clearFocus()
-                            if (items.isNotEmpty() || serverSearch)
-                                showDialog = true
+                            if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                searchText = ""
+                                onType("")
+                            }
+                            showDialog = true
                             onClick()
                         }
                 )
@@ -341,6 +344,10 @@ fun <T> CommonDropDown(
                 val dialogLazyListState = rememberLazyListState()
                 Dialog(
                     onDismissRequest = {
+                        if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                            searchText = ""
+                            onType("")
+                        }
                         showDialog = false
                         focusManager.clearFocus()
                         keyboardController?.hide()
@@ -358,6 +365,10 @@ fun <T> CommonDropDown(
                             .systemBarsPadding()
                             .pointerInput(Unit) {
                                 detectTapGestures {
+                                    if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                        searchText = ""
+                                        onType("")
+                                    }
                                     showDialog = false
                                 }
                             },
@@ -693,6 +704,10 @@ fun <T> CommonDropDown(
                                             color = Color.Gray,
                                             modifier = Modifier
                                                 .clickable {
+                                                    if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                                        searchText = ""
+                                                        onType("")
+                                                    }
                                                     showDialog = false
                                                 }
                                                 .padding(8.dp)
@@ -705,6 +720,10 @@ fun <T> CommonDropDown(
                                                 color = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier
                                                     .clickable {
+                                                        if (filteredItems.isEmpty() && searchText.isNotEmpty()) {
+                                                            searchText = ""
+                                                            onType("")
+                                                        }
 
                                                         val result =
                                                             tempSelectedItems.toList()
